@@ -1,0 +1,31 @@
+version: "3"
+
+volumes:
+  postgres:
+
+services:
+  postgres:
+    image: postgres:13
+    tty: true
+    restart: on-failure
+    healthcheck:
+      test: pg_isready -U payments -d payments
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    environment:
+      POSTGRES_USER: exchange_rate
+      POSTGRES_PASSWORD: exchange_rate
+      POSTGRES_DB: exchange_rate
+    volumes:
+      - postgres:/var/lib/postgresql/data
+
+  helper:
+    image: ${DOCKER_REPOSITORY}/${APP_NAME}-helper:${VERSION}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    env_file:
+      - configs/env.example
+    volumes:
+      - ./:/app
