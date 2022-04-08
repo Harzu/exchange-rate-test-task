@@ -34,8 +34,8 @@ func (c *Container) Mux() *chi.Mux {
 }
 
 func (c *Container) getRate(w http.ResponseWriter, r *http.Request) {
-	cryptoSymbols := strings.Split(chi.URLParam(r, "tsyms"), ",")
-	fiatSymbols := strings.Split(chi.URLParam(r, "fsyms"), ",")
+	cryptoSymbols := strings.Split(chi.URLParam(r, "fsyms"), ",")
+	fiatSymbols := strings.Split(chi.URLParam(r, "tsyms"), ",")
 	if len(cryptoSymbols) == 0 || len(fiatSymbols) == 0 {
 		http.Error(w, "invalid params", http.StatusBadRequest)
 		return

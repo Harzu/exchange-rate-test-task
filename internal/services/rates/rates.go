@@ -76,13 +76,17 @@ func buildPairsRate(pairs []entities.Pair) *entities.PairsRate {
 	return result
 }
 
-func buildPairs(resp *entities.PairsRate) []entities.Pair {
-	return []entities.Pair{
-		{
-			CryptoSymbol:      "ETH",
-			FiatSymbol:        "USD",
-			RawRateValues:     entities.RateValues[float64]{ChangePCT24Hour: 1.1},
-			DisplayRateValues: entities.RateValues[string]{ChangePCT24Hour: "1.1"},
-		},
-	}
+func buildPairs(rates *entities.PairsRate) []entities.Pair {
+	var pairs []entities.Pair
+	//for cryptoSymbol := range rates.Raw {
+	//
+	//	//for fiatSymbol, rateValues := range fiat {
+	//	//	pairs = append(pairs, entities.Pair{
+	//	//		CryptoSymbol: cryptoSymbol,
+	//	//		FiatSymbol:   fiatSymbol,
+	//	//	})
+	//	//}
+	//}
+
+	return pairs
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/robfig/cron/v3"
 	"github.com/rs/zerolog"
 	"go.uber.org/multierr"
 
@@ -21,13 +22,13 @@ import (
 )
 
 type app struct {
-	ctx         context.Context
-	config      *config.Config
-	logger      *zerolog.Logger
-	pgPool      *pgxpool.Pool
-	redisClient *redis.Client
-	jobRunner   jobs.Runner
-	httpServer  *http.Server
+	ctx           context.Context
+	config        *config.Config
+	logger        *zerolog.Logger
+	pgPool        *pgxpool.Pool
+	redisClient   *redis.Client
+	jobsScheduler *cron.Cron
+	httpServer    *http.Server
 }
 
 func NewApp(ctx context.Context) (*app, error) {
@@ -53,19 +54,19 @@ func NewApp(ctx context.Context) (*app, error) {
 
 	repoContainer := repositories.New(pgPool)
 	servicesContainer := services.NewContainer(cfg, appLogger, redisClient, repoContainer)
-	jobsRunner, err := jobs.New(cfg.Jobs, appLogger, servicesContainer.Locker, servicesContainer)
+	jobsScheduler, err := jobs.NewScheduler(cfg.Jobs, appLogger, servicesContainer)
 	if err != nil {
 		return nil, err
 	}
 	httpControllers := controllers.NewHTTPContainer(appLogger, servicesContainer.Rates)
 
 	return &app{
-		ctx:         ctx,
-		logger:      appLogger,
-		pgPool:      pgPool,
-		config:      cfg,
-		jobRunner:   jobsRunner,
-		redisClient: redisClient,
+		ctx:           ctx,
+		logger:        appLogger,
+		pgPool:        pgPool,
+		config:        cfg,
+		jobsScheduler: jobsScheduler,
+		redisClient:   redisClient,
 		httpServer: &http.Server{
 			Addr:    fmt.Sprintf(":%s", cfg.Port),
 			Handler: httpControllers.Mux(),
@@ -74,7 +75,7 @@ func NewApp(ctx context.Context) (*app, error) {
 }
 
 func (a *app) Start() {
-	a.jobRunner.Start()
+	a.jobsScheduler.Start()
 	a.logger.Info().Str("http_port", a.config.Port).Msg("start http server")
 	if err := a.httpServer.ListenAndServe(); err != nil {
 		a.logger.Error().Err(err).Msg("failed to start http server")
@@ -82,11 +83,11 @@ func (a *app) Start() {
 }
 
 func (a *app) Shutdown() error {
-	a.jobRunner.Stop()
-	a.pgPool.Close()
-
-	return multierr.Combine(
+	a.jobsScheduler.Stop()
+	err := multierr.Combine(
 		a.httpServer.Shutdown(a.ctx),
 		a.redisClient.Close(),
 	)
+	a.pgPool.Close()
+	return err
 }

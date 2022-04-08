@@ -27,7 +27,7 @@ func newUploadRatesJob(
 	logger *zerolog.Logger,
 	locker locker.Locker,
 	ratesService *rates.Service,
-) job {
+) *uploadRatesJob {
 	return &uploadRatesJob{
 		spec:          cfg.UploadRatesJobSpec,
 		lockTTL:       cfg.UploadRatesJobLockTTl,
