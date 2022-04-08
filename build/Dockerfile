@@ -1,5 +1,3 @@
-ARG APP_NAME
-
 FROM golang:1.18 as builder
 
 ENV GO111MODULE="on"
@@ -11,8 +9,8 @@ COPY ./go.mod ./go.sum ./
 RUN go mod download
 
 COPY . .
-RUN go build -o ./$APP_NAME ./cmd
+RUN go build -o /app/exchange-rate-test-task /app/cmd/
 
 FROM gcr.io/distroless/static
-COPY --from=builder /app/$APP_NAME /usr/bin/$APP_NAME
-ENTRYPOINT ["/usr/bin/$APP_NAME"]
+COPY --from=builder /app/exchange-rate-test-task /usr/bin/exchange-rate-test-task
+ENTRYPOINT ["/usr/bin/exchange-rate-test-task"]

@@ -5,21 +5,21 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/Harzu/exchange-rate-test-task/internal/entities"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
 
 	"github.com/Harzu/exchange-rate-test-task/internal/services/rates"
-
-	"github.com/go-chi/chi/v5/middleware"
-
-	"github.com/go-chi/chi/v5"
 )
 
 type Container struct {
+	logger       *zerolog.Logger
 	ratesService *rates.Service
 }
 
-func NewHTTPContainer(ratesService *rates.Service) *Container {
+func NewHTTPContainer(logger *zerolog.Logger, ratesService *rates.Service) *Container {
 	return &Container{
+		logger:       logger,
 		ratesService: ratesService,
 	}
 }
@@ -34,47 +34,26 @@ func (c *Container) Mux() *chi.Mux {
 }
 
 func (c *Container) getRate(w http.ResponseWriter, r *http.Request) {
-	sourceSymbols := strings.Split(chi.URLParam(r, "fsyms"), ",")
-	targetSymbols := strings.Split(chi.URLParam(r, "fsyms"), ",")
-	if len(sourceSymbols) == 0 || len(targetSymbols) == 0 {
+	cryptoSymbols := strings.Split(chi.URLParam(r, "tsyms"), ",")
+	fiatSymbols := strings.Split(chi.URLParam(r, "fsyms"), ",")
+	if len(cryptoSymbols) == 0 || len(fiatSymbols) == 0 {
 		http.Error(w, "invalid params", http.StatusBadRequest)
 		return
 	}
 
-	pairRates, err := c.ratesService.GetRate(r.Context(), sourceSymbols, targetSymbols)
+	pairsRate, err := c.ratesService.GetPairsRate(r.Context(), cryptoSymbols, fiatSymbols)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	ratesMapping := map[string]map[string]entities.Rate{}
-	for _, pairRate := range pairRates {
-		if _, ok := ratesMapping[pairRate.SourceSymbol]; !ok {
-			ratesMapping[pairRate.SourceSymbol][pairRate.TargetSymbol] = pairRate.Rate
-			continue
-		}
-
-		ratesMapping[pairRate.SourceSymbol][pairRate.TargetSymbol] = pairRate.Rate
-	}
-
-	type response struct {
-		RAW     map[string]map[string]entities.Rate
-		DISPLAY map[string]map[string]entities.Rate
-	}
-
-	resp := &response{
-		RAW:     ratesMapping,
-		DISPLAY: ratesMapping,
-	}
-
-	responseBytes, err := json.Marshal(resp)
+	responseBytes, err := json.Marshal(pairsRate)
 	if err != nil {
 		http.Error(w, "failed to serialize response", http.StatusInternalServerError)
 		return
 	}
 
 	if _, err := w.Write(responseBytes); err != nil {
-		//	todo: logger
-		return
+		c.logger.Error().Err(err).Msg("failed to write response")
 	}
 }

@@ -1,16 +1,23 @@
 package services
 
 import (
+	"github.com/go-redis/redis/v8"
+	"github.com/rs/zerolog"
+
+	"github.com/Harzu/exchange-rate-test-task/internal/config"
 	"github.com/Harzu/exchange-rate-test-task/internal/repositories"
 	"github.com/Harzu/exchange-rate-test-task/internal/services/rates"
+	"github.com/Harzu/exchange-rate-test-task/internal/services/redis/locker"
 )
 
 type Container struct {
-	Rates *rates.Service
+	Locker locker.Locker
+	Rates  *rates.Service
 }
 
-func New(repoContainer *repositories.Container) *Container {
+func NewContainer(cfg *config.Config, logger *zerolog.Logger, redisClient *redis.Client, repositories *repositories.Container) *Container {
 	return &Container{
-		Rates: rates.NewService(repoContainer.Rates),
+		Locker: locker.New(redisClient),
+		Rates:  rates.NewService(cfg, logger, repositories.Rates),
 	}
 }
